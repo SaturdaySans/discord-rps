@@ -10,6 +10,7 @@ import {
 } from 'discord-interactions';
 import { getRandomEmoji, DiscordRequest } from './utils.js';
 import { getShuffledOptions, getResult } from './game.js';
+import { pool } from './db.js';
 
 // Create an express app
 const app = express();
@@ -57,6 +58,37 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
           ]
         },
       });
+    }
+
+    if (name === 'leaderboard') {
+      try {
+        const result = await pool.query(`
+          SELECT user_id, wins, losses, games
+          FROM leaderboard
+          ORDER BY wins DESC
+          LIMIT 10
+        `);
+
+        let text = '**🏆 Leaderboard**\n';
+
+        if (result.rows.length === 0) {
+          text += 'No games played yet!';
+        } else {
+          result.rows.forEach((row, i) => {
+            text += `${i + 1}. <@${row.user_id}> - ${row.wins} wins (${row.games} games)\n`;
+          });
+        }
+
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: {
+            content: text
+          }
+        });
+
+      } catch (err) {
+        console.error(err);
+      }
     }
 
     // "challenge" command
@@ -160,10 +192,67 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         const userId = context === 0 ? req.body.member.user.id : req.body.user.id;
         const objectName = data.values[0];
         // Calculate result from helper function
-        const resultStr = getResult(activeGames[gameId], {
+        const player1 = activeGames[gameId];
+        const player2 = {
           id: userId,
-          objectName,
-        });
+          objectName
+        };
+
+        const resultStr = getResult(player1, player2);
+
+        // Determine winner
+        let winnerId = null;
+        let loserId = null;
+
+        if (resultStr.includes('Tie')) {
+          // draw
+        } else if (resultStr.includes(`<@${player1.id}> wins`)) {
+          winnerId = player1.id;
+          loserId = player2.id;
+        } else {
+          winnerId = player2.id;
+          loserId = player1.id;
+        }
+
+        try {
+          // Ensure rows exist
+          await pool.query(`
+            INSERT INTO leaderboard (user_id, wins, losses, games)
+            VALUES ($1,0,0,0)
+            ON CONFLICT (user_id) DO NOTHING
+          `, [player1.id]);
+
+          await pool.query(`
+            INSERT INTO leaderboard (user_id, wins, losses, games)
+            VALUES ($1,0,0,0)
+            ON CONFLICT (user_id) DO NOTHING
+          `, [player2.id]);
+
+          // Increase game count
+          await pool.query(`
+            UPDATE leaderboard
+            SET games = games + 1
+            WHERE user_id = ANY($1)
+          `, [[player1.id, player2.id]]);
+
+          // If not draw update win/loss
+          if (winnerId) {
+            await pool.query(`
+              UPDATE leaderboard
+              SET wins = wins + 1
+              WHERE user_id = $1
+            `, [winnerId]);
+
+            await pool.query(`
+              UPDATE leaderboard
+              SET losses = losses + 1
+              WHERE user_id = $1
+            `, [loserId]);
+          }
+
+        } catch (err) {
+          console.error("Leaderboard update failed:", err);
+        }
 
         // Remove game from storage
         delete activeGames[gameId];
