@@ -191,7 +191,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
               components: [
                 {
                   type: MessageComponentTypes.TEXT_DISPLAY,
-                  content: 'Nice choice ' + getRandomEmoji()
+                  content: 'Nice choice!'
                 }
               ],
             },

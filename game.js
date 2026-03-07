@@ -38,16 +38,16 @@ function formatResult(result) {
 const RPSChoices = {
   rock: {
     description: 'sedimentary, igneous, or perhaps even metamorphic',
-    virus: 'outwaits',
-    computer: 'smashes',
+    // virus: 'outwaits',
+    // computer: 'smashes',
     scissors: 'crushes',
   },
-  // scissors: {
-  //   description: 'careful ! sharp ! edges !!',
-  //   paper: 'cuts',
-  //   computer: 'cuts cord of',
-  //   virus: 'cuts DNA of',
-  // },
+  scissors: {
+    description: 'careful ! sharp ! edges !!',
+    paper: 'cuts',
+    // computer: 'cuts cord of',
+    // virus: 'cuts DNA of',
+  },
   // virus: {
   //   description: 'genetic mutation, malware, or something inbetween',
   //   cowboy: 'infects',
@@ -68,8 +68,8 @@ const RPSChoices = {
   // },
   paper: {
     description: 'versatile and iconic',
-    virus: 'ignores',
-    cowboy: 'gives papercut to',
+    // virus: 'ignores',
+    // cowboy: 'gives papercut to',
     rock: 'covers',
   },
 };
