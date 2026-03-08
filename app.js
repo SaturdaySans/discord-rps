@@ -185,13 +185,9 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
       const gameId = componentId.replace('select_choice_', '');
 
       if (activeGames[gameId]) {
-        // Interaction context
         const context = req.body.context;
-        // Get user ID and object choice for responding user
-        // User ID is in user field for (G)DMs, and member for servers
         const userId = context === 0 ? req.body.member.user.id : req.body.user.id;
         const objectName = data.values[0];
-        // Calculate result from helper function
         const player1 = activeGames[gameId];
         const player2 = {
           id: userId,
@@ -200,12 +196,10 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 
         const resultStr = getResult(player1, player2);
 
-        // Determine winner
         let winnerId = null;
         let loserId = null;
 
         if (resultStr.includes('Tie')) {
-          // draw
         } else if (resultStr.includes(`<@${player1.id}> wins`)) {
           winnerId = player1.id;
           loserId = player2.id;
@@ -215,7 +209,6 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
         }
 
         try {
-          // Ensure rows exist
           await pool.query(`
             INSERT INTO leaderboard (user_id, wins, losses, games)
             VALUES ($1,0,0,0)
@@ -228,14 +221,12 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
             ON CONFLICT (user_id) DO NOTHING
           `, [player2.id]);
 
-          // Increase game count
           await pool.query(`
             UPDATE leaderboard
             SET games = games + 1
             WHERE user_id = ANY($1)
           `, [[player1.id, player2.id]]);
 
-          // If not draw update win/loss
           if (winnerId) {
             await pool.query(`
               UPDATE leaderboard
@@ -254,13 +245,10 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
           console.error("Leaderboard update failed:", err);
         }
 
-        // Remove game from storage
         delete activeGames[gameId];
-        // Update message with token in request body
         const endpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/${req.body.message.id}`;
 
         try {
-          // Send results
           await res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: { 
@@ -273,7 +261,6 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
               ]
              },
           });
-          // Update ephemeral message
           await DiscordRequest(endpoint, {
             method: 'PATCH',
             body: {
